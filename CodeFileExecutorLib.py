@@ -3,10 +3,10 @@ from src.core.executor import CodeFileExecutor
 
 # 日志级别: 'DEBUG', 'INFO', 'WARNING', 'ERROR'
 # 是否启用备份: True/False
-executor = CodeFileExecutor(log_level='INFO', backup_enabled=True)
+executor = CodeFileExecutor(log_level='WARNING', backup_enabled=True)
 
 # 参数1: root_dir (str) 操作根目录
-root_dir= "/home/vz/code_root_dir"
+root_dir= "E:\Projects\GitHubProjects\code_root_dir"
 
 # 参数2: files_content (str) 结构化操作指令文本
 files_content ="""
@@ -443,7 +443,6 @@ __all__ = [
 """
 
 if __name__ == "__main__":
-    executor = CodeFileExecutor(log_level='DEBUG', backup_enabled=False)
     for stream in executor.codeFileExecutHelper(root_dir, files_content):
         print(f"[{stream['type'].upper()}] {stream['message']}")
         if stream['type'] == 'summary':
