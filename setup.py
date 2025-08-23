@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 setup(
     name="CodeFileExecutorLib",
-    version="1.1.0",
+    version="1.1.2",
     description="A Python library for batch file and folder operations with structured task definitions",
     author="Tery Tsui",
     author_email="teryfly@qq.com",

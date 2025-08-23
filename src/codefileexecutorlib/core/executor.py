@@ -45,8 +45,8 @@ class CodeFileExecutor:
         try:
             blocks = parser.split_content(files_content)
             total_tasks = len(blocks)
-            yield stream.build_stream(f"一共{total_tasks}个待解析任务", StreamType.INFO)
-            self.logger.info(f"一共{total_tasks}个待解析任务")
+            yield stream.build_stream(f"一共{total_tasks}个待执行任务", StreamType.INFO)
+            self.logger.info(f"一共{total_tasks}个待执行任务")
         except Exception as e:
             yield stream.build_stream(f"内容解析失败: {str(e)}", StreamType.ERROR)
             self.logger.error(f"内容解析失败: {str(e)}")
@@ -150,11 +150,15 @@ class CodeFileExecutor:
                         continue
                     if op_result and op_result.success:
                         successful_tasks += 1
-                        success_msg = "任务执行成功"
+                        # 统计代码行数
+                        lines_count = 0
+                        if task.requires_content and task.content:
+                            lines_count = len(task.content.splitlines())
+                        success_msg = f"任务执行成功，更新{lines_count}行代码"
                         if op_result.backup_path:
                             success_msg += f" (备份: {op_result.backup_path})"
                         yield stream.build_stream(success_msg, StreamType.SUCCESS)
-                        self.logger.info(f"任务执行成功: {op_result.message}", step_num=step_num)
+                        self.logger.info(f"{success_msg}: {op_result.message}", step_num=step_num)
                     else:
                         failed_tasks += 1
                         error_msg = op_result.error if op_result else "操作返回空结果"

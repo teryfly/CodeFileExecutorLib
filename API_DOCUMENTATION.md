@@ -27,14 +27,14 @@ pip install git+https://github.com/teryfly/CodeFileExecutorLib.git
 
 ### 引入库
 ```python
-from CodeFileExecutorLib import CodeFileExecutor
+from codefileexecutorlib  import CodeFileExecutor
 ```
 
 ### 创建执行器实例
 ```python
 # 日志级别: DEBUG / INFO / WARNING / ERROR
 # 是否启用备份: True/False
-executor = CodeFileExecutor(log_level="INFO", backup_enabled=True)
+executor = CodeFileExecutor(log_level="ERROR", backup_enabled=False)
 ```
 
 ### 执行操作任务
@@ -133,7 +133,7 @@ def codeFileExecutHelper(root_dir: str, files_content: str) -> Generator[dict, N
 ---
 
 ## 注意事项
-
+- 引入库时要使用全小写 （ from codefileexecutorlib  import CodeFileExecutor ）
 - 所有文件操作都受 **路径安全验证** 限制，防止目录遍历攻击
 - 文件大小限制：单文件最大 10MB
 - 路径长度限制：260 字符（兼容 Windows）

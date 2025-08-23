@@ -29,8 +29,8 @@ class CodeFileExecutor:
         # 第一阶段：内容分割和统计
         blocks = parser.split_content(files_content)
         total_tasks = len(blocks)
-        yield stream.build_stream(f"一共{total_tasks}个待解析任务", StreamType.INFO)
-        self.logger.info(f"一共{total_tasks}个待解析任务")
+        yield stream.build_stream(f"一共{total_tasks}个待执行任务", StreamType.INFO)
+        self.logger.info(f"一共{total_tasks}个待执行任务")
         # 统计变量
         successful_tasks = 0
         failed_tasks = 0
