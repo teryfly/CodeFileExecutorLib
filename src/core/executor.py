@@ -38,7 +38,7 @@ class CodeFileExecutor:
         for idx, block in enumerate(blocks):
             step_num = idx + 1
             yield stream.build_stream(f"正在解析第【{step_num}/{total_tasks}】个任务", StreamType.PROGRESS)
-            self.logger.info(f"开始解析第{step_num}个任务块", step_num=step_num)
+            self.logger.info(f"开始执行第{step_num}个任务块", step_num=step_num)
             task: TaskModel = parser.parse_task_block(block)
             if not task.is_valid:
                 invalid_tasks += 1

@@ -11,13 +11,19 @@ from codefileexecutorlib.models.task_model import TaskModel
 from codefileexecutorlib.models.result_model import OperationResult
 from codefileexecutorlib.models.stream_data import StreamData
 from codefileexecutorlib.models import StreamType
+from codefileexecutorlib.utils.preprocessor import Preprocessor
 import time
 import os
+
+
 def is_path_length_valid(path: str, max_chars: int = 260) -> bool:
     """验证路径长度是否有效"""
     return len(path) <= max_chars
+
+
 class CodeFileExecutor:
     """主执行器类，负责批量文件操作的执行"""
+
     def __init__(self, log_level: str = 'INFO', backup_enabled: bool = True):
         """
         初始化执行器
@@ -29,6 +35,7 @@ class CodeFileExecutor:
         self.op_handler = FileOperationHandler(backup_enabled=backup_enabled)
         self.log_level = log_level
         self.backup_enabled = backup_enabled
+
     def codeFileExecutHelper(self, root_dir: str, files_content: str) -> Generator[dict, None, dict]:
         """
         执行批量文件操作的主方法
@@ -40,10 +47,23 @@ class CodeFileExecutor:
         """
         start_time = time.time()
         path_handler = PathHandler(root_dir)
-        stream = StreamHandler
+        # 使用实例而不是类，以避免属性名被错误替换或污染
+        stream = StreamHandler()
         parser = ContentParser
+
+        # 预处理：在解析之前对整体文本做规整
         try:
-            blocks = parser.split_content(files_content)
+            preprocessed_content = Preprocessor.trim_assistant_reply(files_content)
+            if preprocessed_content != files_content:
+                self.logger.info("已对输入内容进行预处理（剥离思索片段与尾部占位）")
+                yield stream.build_stream("已完成输入预处理", StreamType.INFO)
+        except Exception as e:
+            yield stream.build_stream(f"预处理失败: {str(e)}", StreamType.ERROR)
+            self.logger.error(f"预处理失败: {str(e)}")
+            return
+
+        try:
+            blocks = parser.split_content(preprocessed_content)
             total_tasks = len(blocks)
             yield stream.build_stream(f"一共{total_tasks}个待执行任务", StreamType.INFO)
             self.logger.info(f"一共{total_tasks}个待执行任务")
@@ -51,10 +71,12 @@ class CodeFileExecutor:
             yield stream.build_stream(f"内容解析失败: {str(e)}", StreamType.ERROR)
             self.logger.error(f"内容解析失败: {str(e)}")
             return
+
         successful_tasks = 0
         failed_tasks = 0
         invalid_tasks = 0
         content_integrity_warnings = 0
+
         for idx, block in enumerate(blocks):
             step_num = idx + 1
             yield stream.build_stream(f"正在解析第【{step_num}/{total_tasks}】个任务", StreamType.PROGRESS)
@@ -67,17 +89,21 @@ class CodeFileExecutor:
                     yield stream.build_stream(f"无效任务: {error_msg}", StreamType.ERROR)
                     self.logger.error(f"无效任务: {error_msg}", step_num=step_num)
                     continue
+
                 yield stream.build_stream(task.step_line, StreamType.INFO)
+
                 if task.code_block_count > 1:
                     msg = f"发现{task.code_block_count}个代码块，将使用最大的一个"
                     yield stream.build_stream(msg, StreamType.WARNING)
                     self.logger.warning(msg, step_num=step_num)
+
                 content_valid, content_msg = task.validate_content_requirement()
                 if not content_valid:
                     failed_tasks += 1
                     yield stream.build_stream(f"内容验证失败: {content_msg}", StreamType.ERROR)
                     self.logger.error(f"内容验证失败: {content_msg}", step_num=step_num)
                     continue
+
                 if task.requires_content and task.content:
                     try:
                         content_verification = parser.verify_extracted_content(block, task.content)
@@ -89,18 +115,21 @@ class CodeFileExecutor:
                     except Exception as e:
                         yield stream.build_stream(f"内容验证过程出错: {str(e)}", StreamType.WARNING)
                         self.logger.warning(f"内容验证过程出错: {str(e)}", step_num=step_num)
+
                 if not is_content_length_valid(task.content):
                     failed_tasks += 1
                     msg = "文件内容超过10MB，跳过"
                     yield stream.build_stream(msg, StreamType.ERROR)
                     self.logger.error(msg, step_num=step_num)
                     continue
+
                 if not is_path_length_valid(task.file_path):
                     failed_tasks += 1
                     msg = "路径长度超过限制，跳过"
                     yield stream.build_stream(msg, StreamType.ERROR)
                     self.logger.error(msg, step_num=step_num)
                     continue
+
                 file_path = task.file_path
                 is_abs = path_handler.is_absolute_path(file_path)
                 if is_abs:
@@ -110,12 +139,14 @@ class CodeFileExecutor:
                     full_path = path_handler.normalize_path(file_path)
                 else:
                     full_path = path_handler.get_full_path(file_path)
+
                 if not path_handler.validate_path_security(full_path):
                     failed_tasks += 1
                     msg = "路径安全校验失败，跳过"
                     yield stream.build_stream(msg, StreamType.ERROR)
                     self.logger.error(f"{msg}: {full_path}", step_num=step_num)
                     continue
+
                 filename = os.path.basename(full_path)
                 if filename and not is_safe_filename(filename):
                     failed_tasks += 1
@@ -123,11 +154,13 @@ class CodeFileExecutor:
                     yield stream.build_stream(msg, StreamType.ERROR)
                     self.logger.error(f"{msg}: {filename}", step_num=step_num)
                     continue
+
                 try:
                     op_result = None
                     action = task.action.lower().strip()
                     operation_summary = task.get_operation_summary()
                     self.logger.info(f"执行操作: {operation_summary}", step_num=step_num)
+
                     if action == "create folder":
                         op_result = self.op_handler.create_folder(full_path)
                     elif action == "delete folder":
@@ -148,9 +181,9 @@ class CodeFileExecutor:
                         yield stream.build_stream(msg, StreamType.ERROR)
                         self.logger.error(msg, step_num=step_num)
                         continue
+
                     if op_result and op_result.success:
                         successful_tasks += 1
-                        # 统计代码行数
                         lines_count = 0
                         if task.requires_content and task.content:
                             lines_count = len(task.content.splitlines())
@@ -176,10 +209,12 @@ class CodeFileExecutor:
                 yield stream.build_stream(error_msg, StreamType.ERROR)
                 self.logger.error(error_msg, step_num=step_num)
                 continue
+
         end_time = time.time()
         execution_time = end_time - start_time
         log_file_path = getattr(self.logger, 'log_file', 'N/A')
         success_rate = (successful_tasks / total_tasks * 100) if total_tasks > 0 else 0
+
         summary_data = {
             "total_tasks": total_tasks,
             "successful_tasks": successful_tasks,

@@ -2,7 +2,7 @@ import os
 import datetime
 
 class Logger:
-    def __init__(self, log_dir: str = 'src/log'):
+    def __init__(self, log_dir: str = 'log'):
         self.log_dir = log_dir
         os.makedirs(self.log_dir, exist_ok=True)
         self.log_file = self._create_log_file()
